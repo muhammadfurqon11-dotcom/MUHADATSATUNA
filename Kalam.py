@@ -17,8 +17,7 @@ model = genai.GenerativeModel('gemini-pro')  # Atau model lain seperti 'gemini-1
 conn = sqlite3.connect(':memory:', check_same_thread=False)
 cursor = conn.cursor()
 
-# Buat tabel-tabel dasar (sama seperti sebelumnya)
-cursor.execute('''CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, username TEXT, role TEXT, password TEXT)''')
+# Buat tabel-tabel dasar (sama seperti sebelumnya, tanpa users)
 cursor.execute('''CREATE TABLE IF NOT EXISTS cases (id INTEGER PRIMARY KEY, title TEXT, description TEXT, user_id INTEGER)''')
 cursor.execute('''CREATE TABLE IF NOT EXISTS discussions (id INTEGER PRIMARY KEY, case_id INTEGER, user_id INTEGER, comment TEXT, timestamp TEXT)''')
 cursor.execute('''CREATE TABLE IF NOT EXISTS assignments (id INTEGER PRIMARY KEY, title TEXT, description TEXT, due_date TEXT, user_id INTEGER)''')
@@ -38,32 +37,9 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS simulations (id INTEGER PRIMARY KEY
 cursor.execute('''CREATE TABLE IF NOT EXISTS notifications (id INTEGER PRIMARY KEY, user_id INTEGER, message TEXT, timestamp TEXT)''')
 conn.commit()
 
-# Data dummy untuk demo
-cursor.execute("INSERT OR IGNORE INTO users (username, role, password) VALUES ('admin', 'admin', 'admin'), ('dosen', 'dosen', 'dosen'), ('mahasiswa', 'mahasiswa', 'mahasiswa')")
-conn.commit()
-
-# Fungsi helper
-def get_user_id(username):
-    cursor.execute("SELECT id FROM users WHERE username=?", (username,))
-    result = cursor.fetchone()
-    return result[0] if result else None
-
-def login():
-    if 'user' not in st.session_state:
-        st.sidebar.title("Login")
-        username = st.sidebar.text_input("Username")
-        password = st.sidebar.text_input("Password", type="password")
-        if st.sidebar.button("Login"):
-            cursor.execute("SELECT role FROM users WHERE username=? AND password=?", (username, password))
-            result = cursor.fetchone()
-            if result:
-                st.session_state.user = username
-                st.session_state.role = result[0]
-                st.sidebar.success("Login berhasil!")
-            else:
-                st.sidebar.error("Username atau password salah")
-        return False
-    return True
+# Asumsikan user_id default untuk demo (karena login dihapus)
+user_id = 1
+role = 'admin'  # Default ke admin agar semua fitur accessible untuk demo
 
 # Fungsi untuk integrasi Gemini: Generate saran atau analisis
 def generate_gemini_response(prompt):
@@ -74,13 +50,7 @@ def generate_gemini_response(prompt):
         return f"Error: {str(e)}"
 
 # App utama
-st.title("MUHADATSATUNA")
-
-if not login():
-    st.stop()
-
-user_id = get_user_id(st.session_state.user)
-role = st.session_state.role
+st.title("Platform Pembelajaran Interaktif \"MUHADATSATUNA\" mari belajar kalam dengan menyenangkan")
 
 # Sidebar navigasi
 st.sidebar.title("Menu")
@@ -140,17 +110,15 @@ elif page == "1. Pembelajaran Klinis & Kasus":
                 st.write("Analisis AI (Gemini):")
                 st.write(ai_response)
     
-    # (Subfitur lain tetap sama, bisa tambah integrasi Gemini di tempat lain jika diperlukan)
     elif subpage == "Manajemen Tugas":
         st.subheader("Manajemen Tugas")
-        if role in ['dosen', 'admin']:
-            ass_title = st.text_input("Judul Tugas")
-            ass_desc = st.text_area("Deskripsi Tugas")
-            due_date = st.date_input("Batas Waktu")
-            if st.button("Buat Tugas Baru"):
-                cursor.execute("INSERT INTO assignments (title, description, due_date, user_id) VALUES (?, ?, ?, ?)", (ass_title, ass_desc, str(due_date), user_id))
-                conn.commit()
-                st.success("Tugas dibuat!")
+        ass_title = st.text_input("Judul Tugas")
+        ass_desc = st.text_area("Deskripsi Tugas")
+        due_date = st.date_input("Batas Waktu")
+        if st.button("Buat Tugas Baru"):
+            cursor.execute("INSERT INTO assignments (title, description, due_date, user_id) VALUES (?, ?, ?, ?)", (ass_title, ass_desc, str(due_date), user_id))
+            conn.commit()
+            st.success("Tugas dibuat!")
         
         assignments = pd.read_sql("SELECT * FROM assignments", conn)
         st.write("Daftar Tugas:")
@@ -196,22 +164,18 @@ elif page == "1. Pembelajaran Klinis & Kasus":
         st.write("Daftar Laporan:")
         st.dataframe(reports)
 
-# (Bagian lain dari kode tetap sama seperti sebelumnya, untuk menghindari panjang berlebih. Anda bisa copy-paste dari kode sebelumnya dan tambahkan integrasi Gemini di fitur relevan lainnya, misalnya generasi kuis di Asesmen.)
-
-# Contoh tambahan integrasi di Fitur 2: Asesmen & Evaluasi
 elif page == "2. Asesmen & Evaluasi":
     st.header("Fitur Asesmen & Evaluasi")
     subpage = st.selectbox("Pilih Sub Fitur", ["Asesmen Daring", "Kuis Interaktif", "Evaluasi Kompetensi"])
     
     if subpage == "Asesmen Daring":
         st.subheader("Asesmen Daring")
-        if role in ['dosen', 'admin']:
-            ass_title = st.text_input("Judul Asesmen")
-            questions = st.text_area("Pertanyaan (JSON format: [{'q':'pertanyaan', 'a':'jawaban'}]")  # Sederhana
-            if st.button("Buat Asesmen"):
-                cursor.execute("INSERT INTO assessments (title, questions) VALUES (?, ?)", (ass_title, questions))
-                conn.commit()
-                st.success("Asesmen dibuat!")
+        ass_title = st.text_input("Judul Asesmen")
+        questions = st.text_area("Pertanyaan (JSON format: [{'q':'pertanyaan', 'a':'jawaban'}]")  # Sederhana
+        if st.button("Buat Asesmen"):
+            cursor.execute("INSERT INTO assessments (title, questions) VALUES (?, ?)", (ass_title, questions))
+            conn.commit()
+            st.success("Asesmen dibuat!")
         
         assessments = pd.read_sql("SELECT * FROM assessments", conn)
         st.write("Daftar Asesmen:")
@@ -219,20 +183,19 @@ elif page == "2. Asesmen & Evaluasi":
     
     elif subpage == "Kuis Interaktif":
         st.subheader("Kuis Interaktif")
-        if role in ['dosen', 'admin']:
-            quiz_title = st.text_input("Judul Kuis")
-            topic = st.text_input("Topik untuk Generasi Kuis dengan Gemini")
-            if st.button("Generate Kuis dengan Gemini"):
-                prompt = f"Generate 5 soal kuis tentang {topic} dalam format JSON: [{'q':'pertanyaan', 'a':'jawaban'}]"
-                questions = generate_gemini_response(prompt)
-                st.write("Kuis Generated:")
-                st.write(questions)
-            
-            questions_input = st.text_area("Pertanyaan (JSON format)", value=questions if 'questions' in locals() else "")
-            if st.button("Buat Kuis"):
-                cursor.execute("INSERT INTO quizzes (title, questions) VALUES (?, ?)", (quiz_title, questions_input))
-                conn.commit()
-                st.success("Kuis dibuat!")
+        quiz_title = st.text_input("Judul Kuis")
+        topic = st.text_input("Topik untuk Generasi Kuis dengan Gemini")
+        if st.button("Generate Kuis dengan Gemini"):
+            prompt = f"Generate 5 soal kuis tentang {topic} dalam format JSON: [{'q':'pertanyaan', 'a':'jawaban'}]"
+            questions = generate_gemini_response(prompt)
+            st.write("Kuis Generated:")
+            st.write(questions)
+        
+        questions_input = st.text_area("Pertanyaan (JSON format)", value=questions if 'questions' in locals() else "")
+        if st.button("Buat Kuis"):
+            cursor.execute("INSERT INTO quizzes (title, questions) VALUES (?, ?)", (quiz_title, questions_input))
+            conn.commit()
+            st.success("Kuis dibuat!")
         
         quizzes = pd.read_sql("SELECT * FROM quizzes", conn)
         st.write("Daftar Kuis:")
@@ -240,18 +203,216 @@ elif page == "2. Asesmen & Evaluasi":
     
     elif subpage == "Evaluasi Kompetensi":
         st.subheader("Evaluasi Kompetensi")
-        if role in ['dosen', 'admin']:
-            user_to_eval = st.selectbox("Pilih Mahasiswa", pd.read_sql("SELECT username FROM users WHERE role='mahasiswa'", conn)['username'])
-            competency = st.text_input("Kompetensi")
-            score = st.number_input("Skor", 0, 100)
-            eval_user_id = get_user_id(user_to_eval)
-            if st.button("Simpan Evaluasi"):
-                cursor.execute("INSERT INTO evaluations (user_id, competency, score) VALUES (?, ?, ?)", (eval_user_id, competency, score))
-                conn.commit()
-                st.success("Evaluasi disimpan!")
+        competency = st.text_input("Kompetensi")
+        score = st.number_input("Skor", 0, 100)
+        if st.button("Simpan Evaluasi"):
+            cursor.execute("INSERT INTO evaluations (user_id, competency, score) VALUES (?, ?, ?)", (user_id, competency, score))
+            conn.commit()
+            st.success("Evaluasi disimpan!")
         
         evals = pd.read_sql("SELECT * FROM evaluations", conn)
         st.write("Daftar Evaluasi:")
         st.dataframe(evals)
 
-# (Lanjutkan dengan bagian kode lainnya seperti sebelumnya...)
+elif page == "3. Komunikasi & Kolaborasi":
+    st.header("Fitur Komunikasi & Kolaborasi")
+    subpage = st.selectbox("Pilih Sub Fitur", ["Forum Diskusi", "Chat/Pesan Langsung", "Video Conference Integration"])
+    
+    if subpage == "Forum Diskusi":
+        st.subheader("Forum Diskusi")
+        topic = st.text_input("Topik Forum")
+        if st.button("Buat Forum Baru"):
+            cursor.execute("INSERT INTO forums (topic, user_id) VALUES (?, ?)", (topic, user_id))
+            conn.commit()
+            st.success("Forum dibuat!")
+        
+        forums = pd.read_sql("SELECT * FROM forums", conn)
+        st.write("Daftar Forum:")
+        st.dataframe(forums)
+        
+        selected_forum = st.selectbox("Pilih Forum", forums['id'] if not forums.empty else [])
+        if selected_forum:
+            post_content = st.text_area("Tambah Post")
+            if st.button("Kirim Post"):
+                timestamp = datetime.now().isoformat()
+                cursor.execute("INSERT INTO forum_posts (forum_id, user_id, content, timestamp) VALUES (?, ?, ?, ?)", (selected_forum, user_id, post_content, timestamp))
+                conn.commit()
+                st.success("Post dikirim!")
+            
+            posts = pd.read_sql("SELECT * FROM forum_posts WHERE forum_id=?", conn, params=(selected_forum,))
+            st.write("Posts:")
+            st.dataframe(posts)
+    
+    elif subpage == "Chat/Pesan Langsung":
+        st.subheader("Chat/Pesan Langsung")
+        to_user_id = st.number_input("Kirim ke User ID", min_value=1)
+        message = st.text_area("Pesan")
+        if st.button("Kirim Pesan"):
+            timestamp = datetime.now().isoformat()
+            cursor.execute("INSERT INTO messages (from_user, to_user, content, timestamp) VALUES (?, ?, ?, ?)", (user_id, to_user_id, message, timestamp))
+            conn.commit()
+            st.success("Pesan dikirim!")
+        
+        messages = pd.read_sql("SELECT * FROM messages WHERE to_user=? OR from_user=?", conn, params=(user_id, user_id))
+        st.write("Pesan:")
+        st.dataframe(messages)
+    
+    elif subpage == "Video Conference Integration":
+        st.subheader("Video Conference Integration")
+        st.write("Integrasi dengan Zoom atau Google Meet. Masukkan link meeting:")
+        link = st.text_input("Link Video Conference")
+        if link:
+            st.write(f"Link: {link} (Integrasi placeholder - gunakan API eksternal untuk real implementasi)")
+
+elif page == "4. Manajemen Konten":
+    st.header("Fitur Manajemen Konten")
+    subpage = st.selectbox("Pilih Sub Fitur", ["Library Materi", "Upload Dokumen", "Multimedia Integration", "E-book/BSE"])
+    
+    if subpage == "Library Materi":
+        st.subheader("Library Materi")
+        materials = pd.read_sql("SELECT id, title, type FROM materials", conn)
+        st.write("Daftar Materi:")
+        st.dataframe(materials)
+    
+    elif subpage == "Upload Dokumen":
+        st.subheader("Upload Dokumen")
+        title = st.text_input("Judul Dokumen")
+        uploaded_file = st.file_uploader("Upload File")
+        if uploaded_file and st.button("Upload"):
+            content = uploaded_file.read()
+            file_type = uploaded_file.type
+            cursor.execute("INSERT INTO materials (title, type, content) VALUES (?, ?, ?)", (title, file_type, content))
+            conn.commit()
+            st.success("Dokumen diupload!")
+    
+    elif subpage == "Multimedia Integration":
+        st.subheader("Multimedia Integration")
+        st.write("Dukungan untuk video, audio, gambar. Upload di atas dan tampilkan di sini (placeholder).")
+        selected_material = st.selectbox("Pilih Materi", pd.read_sql("SELECT id FROM materials", conn)['id'])
+        if selected_material:
+            cursor.execute("SELECT type, content FROM materials WHERE id=?", (selected_material,))
+            mat_type, content = cursor.fetchone()
+            if 'image' in mat_type:
+                st.image(io.BytesIO(content))
+            elif 'video' in mat_type:
+                st.video(io.BytesIO(content))
+            elif 'audio' in mat_type:
+                st.audio(io.BytesIO(content))
+            else:
+                st.download_button("Download", content, file_name="file")
+    
+    elif subpage == "E-book/BSE":
+        st.subheader("E-book/BSE")
+        st.write("Akses ke e-book (placeholder - integrasi dengan library eksternal).")
+
+elif page == "5. Monitoring & Tracking":
+    st.header("Fitur Monitoring & Tracking")
+    subpage = st.selectbox("Pilih Sub Fitur", ["Progress Tracking", "Dashboard Analytics", "Attendance Tracking", "Learning Analytics"])
+    
+    if subpage == "Progress Tracking":
+        st.subheader("Progress Tracking")
+        module = st.text_input("Modul")
+        status = st.selectbox("Status", ["In Progress", "Completed"])
+        if st.button("Update Progress"):
+            cursor.execute("INSERT INTO progress (user_id, module, status) VALUES (?, ?, ?)", (user_id, module, status))
+            conn.commit()
+            st.success("Progress diupdate!")
+        
+        progress = pd.read_sql("SELECT * FROM progress WHERE user_id=?", conn, params=(user_id,))
+        st.dataframe(progress)
+    
+    elif subpage == "Dashboard Analytics":
+        st.subheader("Dashboard Analytics")
+        st.write("Analisis placeholder:")
+        if not progress.empty:
+            st.bar_chart(progress['status'].value_counts())
+    
+    elif subpage == "Attendance Tracking":
+        st.subheader("Attendance Tracking")
+        date = st.date_input("Tanggal")
+        status = st.selectbox("Status", ["Hadir", "Absen"])
+        if st.button("Catat Kehadiran"):
+            cursor.execute("INSERT INTO attendance (user_id, date, status) VALUES (?, ?, ?)", (user_id, str(date), status))
+            conn.commit()
+            st.success("Kehadiran dicatat!")
+        
+        attendance = pd.read_sql("SELECT * FROM attendance", conn)
+        st.dataframe(attendance)
+    
+    elif subpage == "Learning Analytics":
+        st.subheader("Learning Analytics")
+        st.write("Data placeholder dari log dan progress.")
+
+elif page == "6. Laboratorium Virtual/Simulasi":
+    st.header("Fitur Laboratorium Virtual/Simulasi")
+    subpage = st.selectbox("Pilih Sub Fitur", ["Virtual Lab", "Interactive Simulation", "3D Visualization", "Real-time Feedback"])
+    
+    if subpage == "Virtual Lab":
+        st.subheader("Virtual Lab")
+        sim_title = st.text_input("Judul Simulasi")
+        sim_desc = st.text_area("Deskripsi")
+        if st.button("Buat Simulasi"):
+            cursor.execute("INSERT INTO simulations (title, description) VALUES (?, ?)", (sim_title, sim_desc))
+            conn.commit()
+            st.success("Simulasi dibuat!")
+        
+        sims = pd.read_sql("SELECT * FROM simulations", conn)
+        st.dataframe(sims)
+    
+    elif subpage == "Interactive Simulation":
+        st.subheader("Interactive Simulation")
+        st.write("Placeholder untuk simulasi interaktif (gunakan library seperti pygame jika diintegrasikan).")
+    
+    elif subpage == "3D Visualization":
+        st.subheader("3D Visualization")
+        st.write("Placeholder untuk 3D (gunakan library seperti plotly atau three.js via components).")
+    
+    elif subpage == "Real-time Feedback":
+        st.subheader("Real-time Feedback")
+        st.write("Umpan balik placeholder berdasarkan input.")
+        input_sim = st.text_input("Input Simulasi")
+        if input_sim:
+            st.write("Feedback: Input diterima!")
+
+elif page == "7. Manajemen Pengguna":
+    st.header("Fitur Manajemen Pengguna")
+    subpage = st.selectbox("Pilih Sub Fitur", ["Role-Based Access", "User Management", "Notification System"])
+    
+    if subpage == "Role-Based Access":
+        st.subheader("Role-Based Access")
+        st.write("Sudah diimplementasikan via role check (placeholder untuk demo).")
+    
+    elif subpage == "User Management":
+        st.subheader("User Management")
+        st.write("Fitur manajemen pengguna (placeholder, karena login dihapus).")
+    
+    elif subpage == "Notification System":
+        st.subheader("Notification System")
+        message = st.text_input("Pesan Notifikasi")
+        if st.button("Kirim Notifikasi"):
+            timestamp = datetime.now().isoformat()
+            cursor.execute("INSERT INTO notifications (user_id, message, timestamp) VALUES (?, ?, ?)", (user_id, message, timestamp))
+            conn.commit()
+            st.success("Notifikasi dikirim!")
+        
+        notifs = pd.read_sql("SELECT * FROM notifications WHERE user_id=?", conn, params=(user_id,))
+        st.write("Notifikasi:")
+        st.dataframe(notifs)
+
+elif page == "8. Dukungan Teknis":
+    st.header("Fitur Dukungan Teknis")
+    subpage = st.selectbox("Pilih Sub Fitur", ["Technical Support", "Troubleshooting Guide", "Training & Tutorial"])
+    
+    if subpage == "Technical Support":
+        st.subheader("Technical Support")
+        issue = st.text_area("Deskripsikan Masalah")
+        if st.button("Kirim ke Support"):
+            st.success("Tikett support dibuat (placeholder).")
+    
+    elif subpage == "Troubleshooting Guide":
+        st.subheader("Troubleshooting Guide")
+        st.write("Panduan umum: Restart app, check login, dll.")
+    
+    elif subpage == "Training & Tutorial":
+        st.subheader("Training & Tutorial")
+        st.write("Tutorial penggunaan: Pilih menu di sidebar.")
