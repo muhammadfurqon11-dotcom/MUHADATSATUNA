@@ -74,7 +74,7 @@ def generate_gemini_response(prompt):
         return f"Error: {str(e)}"
 
 # App utama
-st.title("Platform Pembelajaran Klinis Berbasis Streamlit dengan Integrasi Gemini API")
+st.title("Platform Pembelajaran Interaktif "MUHADATSATUNA" mari belajar kalam dengan menyenangkan")
 
 if not login():
     st.stop()
