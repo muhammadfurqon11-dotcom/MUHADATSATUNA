@@ -6,12 +6,12 @@ import base64
 import io
 import google.generativeai as genai  # Integrasi dengan Google Gemini API
 
-# Konfigurasi API Key untuk Gemini (ganti dengan API key Anda)
-GEMINI_API_KEY = st.secrets.get("GEMINI_API_KEY", "YOUR_API_KEY_HERE")  # Gunakan Streamlit secrets untuk produksi
+# Akses API Key dari secrets.toml
+GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]  # Ini akan error jika secrets.toml tidak ada atau key tidak didefinisikan
 genai.configure(api_key=GEMINI_API_KEY)
 
 # Inisialisasi model Gemini
-model = genai.GenerativeModel('gemini-pro')  # Atau model lain seperti 'gemini-1.5-pro'
+model = genai.GenerativeModel('Gemini-2.5-Flash-Lite')  # Atau model lain seperti 'gemini-1.5-pro'
 
 # Inisialisasi database sederhana menggunakan SQLite (untuk demo, data hilang saat restart app)
 conn = sqlite3.connect(':memory:', check_same_thread=False)
