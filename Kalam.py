@@ -273,6 +273,24 @@ elif page == "4. Manajemen Konten":
         materials = pd.read_sql("SELECT id, title, type FROM materials", conn)
         st.write("Daftar Materi:")
         st.dataframe(materials)
+        
+        # Tambahan: Generate Materi dengan Gemini
+        st.subheader("Generate Materi dengan Gemini AI")
+        materi_title = st.text_input("Judul Materi")
+        materi_topic = st.text_area("Topik atau Deskripsi untuk Generasi Materi")
+        if st.button("Generate Materi"):
+            if materi_topic:
+                prompt = f"Generate materi pembelajaran lengkap tentang {materi_topic}. Sertakan penjelasan, contoh, dan ringkasan dalam format teks Markdown."
+                generated_content = generate_gemini_response(prompt)
+                st.write("Materi Generated:")
+                st.markdown(generated_content)
+                
+                # Simpan ke database sebagai teks (type 'text')
+                if st.button("Simpan Materi Generated ke Library"):
+                    content_blob = generated_content.encode('utf-8')  # Konversi teks ke BLOB
+                    cursor.execute("INSERT INTO materials (title, type, content) VALUES (?, ?, ?)", (materi_title, 'text/markdown', content_blob))
+                    conn.commit()
+                    st.success("Materi disimpan ke library!")
     
     elif subpage == "Upload Dokumen":
         st.subheader("Upload Dokumen")
@@ -298,6 +316,8 @@ elif page == "4. Manajemen Konten":
                 st.video(io.BytesIO(content))
             elif 'audio' in mat_type:
                 st.audio(io.BytesIO(content))
+            elif 'text' in mat_type:
+                st.markdown(content.decode('utf-8'))  # Tampilkan jika teks
             else:
                 st.download_button("Download", content, file_name="file")
     
