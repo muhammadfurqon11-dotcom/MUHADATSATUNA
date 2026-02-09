@@ -74,7 +74,7 @@ def generate_gemini_response(prompt):
         return f"Error: {str(e)}"
 
 # App utama
-st.title("Platform Pembelajaran Interaktif "MUHADATSATUNA" mari belajar kalam dengan menyenangkan")
+st.title("MUHADATSATUNA")
 
 if not login():
     st.stop()
